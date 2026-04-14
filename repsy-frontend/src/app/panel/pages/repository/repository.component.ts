@@ -34,6 +34,7 @@ import { RepoListItem } from '../../shared/dto/repo/repo-list-item';
 import { RepoType } from '../../shared/dto/repo/repo-type';
 import { ByteFormatter } from '../../shared/util/byte-formatter';
 import { ProfileService } from '../profile/service/profile.service';
+import { CargoService } from './cargo/service/cargo.service';
 import { DockerService } from './docker/service/docker.service';
 import { GolangService } from './golang/service/golang.service';
 import { MavenService } from './maven/service/maven.service';
@@ -67,7 +68,15 @@ export class RepositoryComponent {
   public paginatedRepos: RepoListItem[] = [];
   public createRepoModal: boolean;
   public repoOption = RepoType.ALL;
-  public repoOptions = [RepoType.ALL, RepoType.DOCKER, RepoType.GOLANG, RepoType.MAVEN, RepoType.NPM, RepoType.PYPI];
+  public repoOptions = [
+    RepoType.ALL,
+    RepoType.DOCKER,
+    RepoType.MAVEN,
+    RepoType.NPM,
+    RepoType.PYPI,
+    RepoType.CARGO,
+    RepoType.GOLANG,
+  ];
   public loading = true;
   public operationLock = false;
   public username: string;
@@ -79,6 +88,7 @@ export class RepositoryComponent {
     private readonly npmService: NpmService,
     private readonly pypiService: PypiService,
     private readonly dockerService: DockerService,
+    private readonly cargoService: CargoService,
     private readonly golangService: GolangService,
     private readonly profileService: ProfileService,
     private readonly toastService: ToastService,
@@ -163,6 +173,7 @@ export class RepositoryComponent {
     this.fetchRepositories(RepoType.NPM);
     this.fetchRepositories(RepoType.PYPI);
     this.fetchRepositories(RepoType.DOCKER);
+    this.fetchRepositories(RepoType.CARGO);
     this.fetchRepositories(RepoType.GOLANG);
   }
 
@@ -197,6 +208,8 @@ export class RepositoryComponent {
         return this.pypiService.fetchRepositories();
       case RepoType.DOCKER:
         return this.dockerService.fetchRepositories();
+      case RepoType.CARGO:
+        return this.cargoService.fetchRepositories();
       case RepoType.GOLANG:
         return this.golangService.fetchRepositories();
       default:
@@ -214,6 +227,8 @@ export class RepositoryComponent {
         return this.pypiService.deleteRepository(repo.name);
       case RepoType.DOCKER:
         return this.dockerService.deleteRepository(repo.name);
+      case RepoType.CARGO:
+        return this.cargoService.deleteRepository(repo.name);
       case RepoType.GOLANG:
         return this.golangService.deleteRepository(repo.name);
       default:

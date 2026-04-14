@@ -20,6 +20,7 @@ export enum RepoType {
   NPM = 'npm',
   PYPI = 'pypi',
   DOCKER = 'docker',
+  CARGO = 'cargo',
   GOLANG = 'golang',
 }
 

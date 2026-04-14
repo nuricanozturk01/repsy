@@ -76,6 +76,11 @@ export const REPOSITORY_DYNAMIC_ROUTES: Routes = [
   },
   {
     path: '',
+    canMatch: [canMatchRepoType('cargo')],
+    loadChildren: () => import('../cargo/cargo.routes').then((m) => m.CARGO_ROUTES),
+  },
+  {
+    path: '',
     canMatch: [canMatchRepoType('golang')],
     loadChildren: () => import('../golang/golang.routes').then((m) => m.GOLANG_ROUTES),
   },

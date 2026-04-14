@@ -13,14 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.repsy.os.server.protocols.maven.shared.constant;
+package io.repsy.os.server.protocols.cargo.shared.crate.repositories;
 
+import io.repsy.os.server.protocols.cargo.shared.crate.entities.CargoAuthor;
+import java.util.Optional;
+import java.util.UUID;
 import org.jspecify.annotations.NullMarked;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
+@Repository
 @NullMarked
-public final class MavenConstants {
+public interface CargoAuthorRepository extends JpaRepository<CargoAuthor, UUID> {
 
-  private MavenConstants() {}
-
-  public static final String URL_PROPERTY_KEY = "urlProperties";
+  Optional<CargoAuthor> findByAuthor(String author);
 }

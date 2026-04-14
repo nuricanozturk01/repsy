@@ -22,6 +22,7 @@ public enum RepoType {
   NPM("npm__"),
   PYPI("pypi__"),
   DOCKER("docker__"),
+  CARGO("cargo__"),
   GOLANG("go__");
 
   private final @NonNull String prefix;

@@ -83,6 +83,18 @@ export class StatsService {
     });
   }
 
+  public async getCargoRepoCount(): Promise<number> {
+    const url = `${this.apiBaseUrl}/api/cargo/repos/count`;
+
+    return new Promise<number>((resolve, reject) => {
+      return this.http
+        .get<RestResponse<number>>(url)
+        .toPromise()
+        .then((res: RestResponse<number>) => resolve(res.data))
+        .catch((res: HttpErrorResponse) => reject(this.errorHandlerService.handle(res)));
+    });
+  }
+
   public async getTotalUsage(): Promise<TotalUsageInfo> {
     return new Promise<TotalUsageInfo>((resolve, reject) => {
       return this.http
@@ -132,6 +144,18 @@ export class StatsService {
   public async fetchDockerRepositoryUsage(repo: string): Promise<RepoUsageInfo> {
     return new Promise<RepoUsageInfo>((resolve, reject) => {
       const url = `${this.apiBaseUrl}/api/docker/repos/${repo}/usage`;
+
+      this.http
+        .get<RestResponse<RepoUsageInfo>>(url)
+        .toPromise()
+        .then((res: RestResponse<RepoUsageInfo>) => resolve(res.data))
+        .catch((res: HttpErrorResponse) => reject(this.errorHandlerService.handle(res)));
+    });
+  }
+
+  public async fetchCargoRepositoryUsage(repo: string): Promise<RepoUsageInfo> {
+    return new Promise<RepoUsageInfo>((resolve, reject) => {
+      const url = `${this.apiBaseUrl}/api/cargo/repos/${repo}/usage`;
 
       this.http
         .get<RestResponse<RepoUsageInfo>>(url)
@@ -215,6 +239,18 @@ export class StatsService {
 
   public async getGolangRepoInfo(): Promise<RepoListInfo[]> {
     const url = `${this.apiBaseUrl}/api/go/repos/info`;
+
+    return new Promise<RepoListInfo[]>((resolve, reject) => {
+      return this.http
+        .get<RestResponse<RepoListInfo[]>>(url)
+        .toPromise()
+        .then((res: RestResponse<RepoListInfo[]>) => resolve(res.data))
+        .catch((res: HttpErrorResponse) => reject(this.errorHandlerService.handle(res)));
+    });
+  }
+
+  public async getCargoRepoInfo(): Promise<RepoListInfo[]> {
+    const url = `${this.apiBaseUrl}/api/cargo/repos/info`;
 
     return new Promise<RepoListInfo[]>((resolve, reject) => {
       return this.http

@@ -25,6 +25,7 @@ import { SpinnerComponent } from '../../../../shared/components/spinner/spinner.
 import { ToastService } from '../../../shared/components/toast/toast.service';
 import { RepoPermissionInfo } from '../../../shared/dto/repo/repo-permission-info';
 import { RepoType } from '../../../shared/dto/repo/repo-type';
+import { CargoService } from '../cargo/service/cargo.service';
 import { DockerService } from '../docker/service/docker.service';
 import { MavenRepoSettingsForm } from '../maven/dto/maven-repo-settings-form';
 import { GolangService } from '../golang/service/golang.service';
@@ -80,6 +81,7 @@ export class RepositorySettingsComponent implements OnInit, OnDestroy {
     private readonly npmService: NpmService,
     private readonly pypiService: PypiService,
     private readonly dockerService: DockerService,
+    private readonly cargoService: CargoService,
     private readonly golangService: GolangService,
     private readonly toastService: ToastService,
     private readonly router: Router,
@@ -179,6 +181,9 @@ export class RepositorySettingsComponent implements OnInit, OnDestroy {
       case RepoType.GOLANG: {
         return this.golangService.repoChanges;
       }
+      case RepoType.CARGO: {
+        return this.cargoService.repoChanges;
+      }
       default:
         throw new Error('Unsupported repository type');
     }
@@ -200,6 +205,9 @@ export class RepositorySettingsComponent implements OnInit, OnDestroy {
       }
       case RepoType.GOLANG: {
         return this.golangService.fetchRepositorySettings();
+      }
+      case RepoType.CARGO: {
+        return this.cargoService.fetchRepositorySettings();
       }
       default:
         return Promise.reject('Unsupported repository type');
