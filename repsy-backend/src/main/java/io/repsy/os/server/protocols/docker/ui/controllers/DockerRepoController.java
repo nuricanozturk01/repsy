@@ -20,8 +20,6 @@ import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import io.repsy.core.response.dtos.RestResponse;
 import io.repsy.core.response.services.RestResponseFactory;
 import io.repsy.libs.multiport.annotations.RestApiPort;
-import io.repsy.libs.storage.core.dtos.RelativePath;
-import io.repsy.libs.storage.core.dtos.StorageItemInfo;
 import io.repsy.os.server.protocols.docker.shared.auth.services.DockerAuthComponent;
 import io.repsy.os.server.protocols.docker.ui.facades.DockerApiFacade;
 import io.repsy.os.shared.repo.dtos.RepoCreateForm;
@@ -51,7 +49,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestApiPort(MultiPortNames.PORT_API)
@@ -67,7 +64,7 @@ public class DockerRepoController {
   private final @NonNull RestResponseFactory responseFactory;
 
   @PostMapping
-  public @NonNull RestResponse<Void> createRepo(
+  public @NonNull RestResponse<Void> create(
       @RequestHeader(AUTHORIZATION) final @NonNull String authHeader,
       @RequestBody @Valid final @NonNull RepoCreateForm form) {
 
@@ -83,7 +80,7 @@ public class DockerRepoController {
   }
 
   @DeleteMapping("/{repoName}")
-  public @NonNull RestResponse<Void> deleteRepo(
+  public @NonNull RestResponse<Void> delete(
       @RequestHeader(AUTHORIZATION) final @NonNull String authHeader,
       @PathVariable final @NonNull String repoName) {
 
@@ -97,7 +94,7 @@ public class DockerRepoController {
   }
 
   @GetMapping("/{repoName}/permissions")
-  public @NonNull RestResponse<RepoPermissionInfo> getRepoPermission(
+  public @NonNull RestResponse<RepoPermissionInfo> getPermission(
       @RequestHeader(value = AUTHORIZATION, required = false) final @Nullable String authHeader,
       @PathVariable final @NonNull String repoName) {
 
@@ -109,23 +106,8 @@ public class DockerRepoController {
     return this.responseFactory.success("repoPermissionsFetched", repoPermissionInfo);
   }
 
-  @GetMapping("/{repoName}/contents")
-  public @NonNull RestResponse<List<StorageItemInfo>> getPathContent(
-      @RequestHeader(value = AUTHORIZATION, required = false) final @Nullable String authHeader,
-      @PathVariable final @NonNull String repoName,
-      @RequestParam final @NonNull String path) {
-
-    final var repoInfo = this.repoTxService.getRepo(repoName, RepoType.DOCKER);
-
-    this.dockerAuthComponent.authorizeUserRequest(repoInfo, authHeader, Permission.READ);
-
-    final var info = this.dockerApiFacade.getItems(repoInfo, new RelativePath(path));
-
-    return this.responseFactory.success("itemsFetched", info);
-  }
-
-  @GetMapping
-  public @NonNull RestResponse<List<RepoListInfo>> getRepos(
+  @GetMapping("/info")
+  public @NonNull RestResponse<List<RepoListInfo>> getInfo(
       @RequestHeader(AUTHORIZATION) final @NonNull String authHeader) {
 
     this.dockerAuthComponent.authenticateUser(authHeader);
@@ -162,7 +144,7 @@ public class DockerRepoController {
   }
 
   @GetMapping("/count")
-  public @NonNull RestResponse<Long> getRepoCount(
+  public @NonNull RestResponse<Long> getCount(
       @RequestHeader(AUTHORIZATION) final @NonNull String authHeader) {
 
     this.dockerAuthComponent.authenticateUser(authHeader);
@@ -173,7 +155,7 @@ public class DockerRepoController {
   }
 
   @PatchMapping("/{repoName}/name")
-  public @NonNull RestResponse<Void> renameRepo(
+  public @NonNull RestResponse<Void> rename(
       @RequestHeader(AUTHORIZATION) final @NonNull String authHeader,
       @PathVariable final @NonNull String repoName,
       @RequestBody @Valid final @NonNull RepoRenameForm form) {
@@ -188,7 +170,7 @@ public class DockerRepoController {
   }
 
   @PatchMapping("/{repoName}/description")
-  public @NonNull RestResponse<Void> updateRepoDescription(
+  public @NonNull RestResponse<Void> updateDescription(
       @RequestHeader(AUTHORIZATION) final @NonNull String authHeader,
       @PathVariable final @NonNull String repoName,
       @RequestBody @Valid final @NonNull RepoDescriptionForm form) {
