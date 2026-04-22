@@ -13,30 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.repsy.libs.protocol.router;
+package io.repsy.protocols.shared.repo.dtos;
 
-import java.util.HashMap;
-import java.util.Map;
-import lombok.Getter;
-
-@Getter
-public final class ProtocolContext {
-
-  private final Map<String, Object> contextMap;
-
-  public ProtocolContext() {
-
-    this.contextMap = new HashMap<>();
-  }
-
-  public void addProperty(final String key, final Object value) {
-
-    this.contextMap.put(key, value);
-  }
-
-  @SuppressWarnings("unchecked")
-  public <T> T getProperty(final String key) {
-
-    return (T) this.contextMap.get(key);
-  }
+public enum RepoScope {
+  ALL,
+  MAVEN,
+  NPM,
+  PYPI,
+  DOCKER,
+  GOLANG,
+  CARGO
 }

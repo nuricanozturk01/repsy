@@ -13,20 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.repsy.os.shared.repo.dtos;
+package io.repsy.os.server.protocols.shared.services;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import io.repsy.libs.storage.core.dtos.BaseUsages;
+import io.repsy.os.shared.repo.dtos.RepoInfo;
+import java.io.IOException;
+import java.util.UUID;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class MavenRepoSettingsForm {
-  private boolean privateRepo;
-  private boolean releases;
-  private boolean snapshots;
-  private boolean allowOverride;
+public interface ProtocolApiFacade {
+
+  void createRepo(UUID repoId);
+
+  BaseUsages deleteRepo(RepoInfo repoInfo) throws IOException;
 }

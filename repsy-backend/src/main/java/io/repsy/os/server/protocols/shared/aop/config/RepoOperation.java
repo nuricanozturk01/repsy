@@ -13,30 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.repsy.libs.protocol.router;
+package io.repsy.os.server.protocols.shared.aop.config;
 
-import java.util.HashMap;
-import java.util.Map;
-import lombok.Getter;
+import io.repsy.protocols.shared.repo.dtos.Permission;
+import io.repsy.protocols.shared.repo.dtos.RepoScope;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-@Getter
-public final class ProtocolContext {
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface RepoOperation {
 
-  private final Map<String, Object> contextMap;
+  RepoScope scope() default RepoScope.ALL;
 
-  public ProtocolContext() {
-
-    this.contextMap = new HashMap<>();
-  }
-
-  public void addProperty(final String key, final Object value) {
-
-    this.contextMap.put(key, value);
-  }
-
-  @SuppressWarnings("unchecked")
-  public <T> T getProperty(final String key) {
-
-    return (T) this.contextMap.get(key);
-  }
+  Permission permission() default Permission.READ;
 }

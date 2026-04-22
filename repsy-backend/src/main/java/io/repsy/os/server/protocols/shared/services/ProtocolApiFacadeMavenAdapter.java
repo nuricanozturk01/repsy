@@ -13,30 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.repsy.libs.protocol.router;
+package io.repsy.os.server.protocols.shared.services;
 
-import java.util.HashMap;
-import java.util.Map;
-import lombok.Getter;
+import io.repsy.libs.storage.core.dtos.RelativePath;
+import io.repsy.libs.storage.core.dtos.StorageItemInfo;
+import io.repsy.os.shared.repo.dtos.RepoInfo;
+import java.util.List;
+import org.jspecify.annotations.NullMarked;
 
-@Getter
-public final class ProtocolContext {
+@NullMarked
+public interface ProtocolApiFacadeMavenAdapter extends ProtocolApiFacade {
 
-  private final Map<String, Object> contextMap;
-
-  public ProtocolContext() {
-
-    this.contextMap = new HashMap<>();
-  }
-
-  public void addProperty(final String key, final Object value) {
-
-    this.contextMap.put(key, value);
-  }
-
-  @SuppressWarnings("unchecked")
-  public <T> T getProperty(final String key) {
-
-    return (T) this.contextMap.get(key);
-  }
+  List<StorageItemInfo> getItems(RepoInfo repoInfo, RelativePath relativePath);
 }

@@ -13,30 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+@NullMarked
 package io.repsy.libs.protocol.router;
 
-import java.util.HashMap;
-import java.util.Map;
-import lombok.Getter;
-
-@Getter
-public final class ProtocolContext {
-
-  private final Map<String, Object> contextMap;
-
-  public ProtocolContext() {
-
-    this.contextMap = new HashMap<>();
-  }
-
-  public void addProperty(final String key, final Object value) {
-
-    this.contextMap.put(key, value);
-  }
-
-  @SuppressWarnings("unchecked")
-  public <T> T getProperty(final String key) {
-
-    return (T) this.contextMap.get(key);
-  }
-}
+import org.jspecify.annotations.NullMarked;
