@@ -166,16 +166,8 @@ public class ArtifactServiceImpl implements ArtifactService<UUID> {
       return;
     }
 
-    final var repoInfo = (RepoInfo) baseRepoInfo;
-
-    if (gav.getExtension() != null
-        && "jar".equals(gav.getExtension())
-        && !repoInfo.isAllowOverride()) {
-      this.checkByStorage(repoInfo, storagePath);
-      return;
-    }
-
-    this.handleDeployTypeRules(repoInfo, artifactPair);
+    this.checkAllowOverride(baseRepoInfo, gav, storagePath);
+    this.handleDeployTypeRules(baseRepoInfo, artifactPair);
   }
 
   @Override
@@ -399,6 +391,54 @@ public class ArtifactServiceImpl implements ArtifactService<UUID> {
     return versionCount == 1;
   }
 
+  private void checkAllowOverride(
+      final BaseRepoInfo<UUID> repoInfo, final Gav gav, final StoragePath storagePath) {
+
+    if (repoInfo.isAllowOverride()) {
+      return;
+    }
+
+    final var fileName = gav.getName();
+
+    if (fileName == null) {
+      return;
+    }
+
+    this.checkForStorage(repoInfo, storagePath);
+
+    if (fileName.endsWith(POM_SUFFIX)) {
+      this.checkForDB(repoInfo.getId(), gav);
+    }
+  }
+
+  private void checkForDB(final UUID repoId, final Gav gav) {
+
+    final var artifactName = gav.getArtifactId();
+    final var groupName = gav.getGroupId();
+    final var version = gav.getVersion();
+
+    if (this.artifactRepository
+        .existsByRepoIdAndArtifactNameAndGroupNameAndArtifactVersionsVersionName(
+            repoId, artifactName, groupName, version)) {
+      throw new AccessNotAllowedException("artifactOverrideIsProhibited");
+    }
+  }
+
+  private void checkForStorage(final BaseRepoInfo<UUID> repoInfo, final StoragePath storagePath) {
+
+    final var storageFileName = storagePath.getRelativePath().getFileName();
+
+    if (storageFileName.contains(METADATA_FILENAME)) {
+      return;
+    }
+
+    final var resourceOpt = this.storageStrategy.get(storagePath, repoInfo.getName());
+
+    if (resourceOpt.isPresent()) {
+      throw new AccessNotAllowedException("artifactOverrideIsProhibited");
+    }
+  }
+
   private void createArtifactVersionByGav(
       final String versionPath,
       final Gav gav,
@@ -615,7 +655,7 @@ public class ArtifactServiceImpl implements ArtifactService<UUID> {
   }
 
   private void checkVersionTypeRules(
-      final RepoInfo repoInfo, final @Nullable ArtifactVersionType versionType) {
+      final BaseRepoInfo<UUID> repoInfo, final @Nullable ArtifactVersionType versionType) {
 
     if (versionType == null) {
       return;
@@ -786,25 +826,17 @@ public class ArtifactServiceImpl implements ArtifactService<UUID> {
   }
 
   private void handleDeployTypeRules(
-      final RepoInfo repoInfo, final MutablePair<ArtifactDeployType, ArtifactVersionType> result) {
+      final BaseRepoInfo<UUID> repoInfo,
+      final MutablePair<ArtifactDeployType, ArtifactVersionType> result) {
 
     final var deployType = result.getKey();
     final var versionType = result.getValue();
 
-    if (deployType != REDEPLOY || repoInfo.isAllowOverride()) {
-      this.checkVersionTypeRules(repoInfo, versionType);
+    if (deployType == REDEPLOY) {
       return;
     }
 
-    throw new AccessNotAllowedException("artifactOverrideIsProhibited");
-  }
-
-  private void checkByStorage(final RepoInfo repoInfo, final StoragePath storagePath) {
-    final var resourceOpt = this.storageStrategy.get(storagePath, repoInfo.getName());
-
-    if (resourceOpt.isPresent()) {
-      throw new AccessNotAllowedException("artifactOverrideIsProhibited");
-    }
+    this.checkVersionTypeRules(repoInfo, versionType);
   }
 
   private @Nullable String getSnapshotArtifactVersionPomFileName(
