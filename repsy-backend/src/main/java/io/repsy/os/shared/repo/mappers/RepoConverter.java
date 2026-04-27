@@ -15,18 +15,19 @@
  */
 package io.repsy.os.shared.repo.mappers;
 
+import io.repsy.os.generated.model.RepoListInfo;
 import io.repsy.os.shared.repo.dtos.RepoInfo;
-import io.repsy.os.shared.repo.dtos.RepoListInfo;
 import io.repsy.os.shared.repo.entities.Repo;
-import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.NullMarked;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
+@NullMarked
 @Mapper(componentModel = "spring")
 public interface RepoConverter {
 
   @Mapping(target = "storageKey", source = "id")
-  @NonNull RepoInfo toRepoInfo(@NonNull Repo repo);
+  RepoInfo toRepoInfo(Repo repo);
 
-  @NonNull RepoListInfo toRepoListInfo(@NonNull Repo repo);
+  RepoListInfo toRepoListInfo(Repo repo);
 }

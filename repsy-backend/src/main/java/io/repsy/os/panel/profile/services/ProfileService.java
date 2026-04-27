@@ -16,10 +16,11 @@
 package io.repsy.os.panel.profile.services;
 
 import io.repsy.core.error_handling.exceptions.BadRequestException;
-import io.repsy.os.panel.profile.dtos.PasswordForm;
-import io.repsy.os.panel.profile.dtos.ProfileInfo;
+import io.repsy.os.generated.model.LoginInfo;
+import io.repsy.os.generated.model.PasswordForm;
+import io.repsy.os.generated.model.ProfileInfo;
+import io.repsy.os.generated.model.UserRole;
 import io.repsy.os.panel.profile.repositories.ReservedUsernameRepository;
-import io.repsy.os.panel.shared.auth.dtos.LoginInfo;
 import io.repsy.os.shared.auth.utils.AuthUtils;
 import io.repsy.os.shared.auth.utils.JwtUtils;
 import io.repsy.os.shared.auth.utils.PasswordGeneratorUtil;
@@ -61,7 +62,7 @@ public class ProfileService {
     return ProfileInfo.builder()
         .id(user.getId())
         .username(user.getUsername())
-        .role(user.getRole())
+        .role(UserRole.valueOf(user.getRole().name()))
         .createdAt(user.getCreatedAt())
         .lastLoginAt(user.getLastLoginAt())
         .build();

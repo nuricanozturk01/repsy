@@ -15,18 +15,40 @@
  */
 package io.repsy.os.server.protocols.pypi.shared.python_package.mappers;
 
+import io.repsy.os.generated.model.ReleaseDetail;
+import io.repsy.os.server.protocols.pypi.shared.python_package.dtos.PackageListItem;
 import io.repsy.os.server.protocols.pypi.shared.python_package.dtos.ReleaseClassifierInfo;
-import io.repsy.os.server.protocols.pypi.shared.python_package.dtos.ReleaseDetail;
+import io.repsy.os.server.protocols.pypi.shared.python_package.dtos.ReleaseListItem;
 import io.repsy.os.server.protocols.pypi.shared.python_package.dtos.ReleaseProjectURLInfo;
 import io.repsy.os.server.protocols.pypi.shared.python_package.entities.Release;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.function.Function;
 import org.jspecify.annotations.NullMarked;
 import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
 import org.mapstruct.MappingConstants;
 
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 @NullMarked
 public interface PypiPackageConverter {
+
+  default Instant map(final LocalDateTime localDateTime) {
+    return localDateTime.toInstant(ZoneOffset.UTC);
+  }
+
+  default <S, T> List<T> mapList(final List<S> source, final Function<S, T> mapper) {
+    return source.stream().map(mapper).toList();
+  }
+
+  io.repsy.os.generated.model.ReleaseClassifierInfo toReleaseClassifierInfoDto(
+      ReleaseClassifierInfo source);
+
+  io.repsy.os.generated.model.ReleaseProjectURLInfo toReleaseProjectURLInfoDto(
+      ReleaseProjectURLInfo source);
+
   default ReleaseDetail toReleaseDetail(
       final Release release,
       final List<ReleaseClassifierInfo> classifiers,
@@ -47,8 +69,14 @@ public interface PypiPackageConverter {
         .description(release.getDescription())
         .descriptionContentType(release.getDescriptionContentType())
         .createdAt(release.getCreatedAt())
-        .classifiers(classifiers)
-        .projectUrls(projectURLs)
+        .classifiers(this.mapList(classifiers, this::toReleaseClassifierInfoDto))
+        .projectUrls(this.mapList(projectURLs, this::toReleaseProjectURLInfoDto))
         .build();
   }
+
+  @Mapping(target = "updatedAt", source = "updatedAt")
+  io.repsy.os.generated.model.PackageListItem toPackageListItemDto(PackageListItem source);
+
+  @Mapping(target = "createdAt", source = "createdAt")
+  io.repsy.os.generated.model.ReleaseListItem toReleaseListItemDto(ReleaseListItem source);
 }

@@ -17,6 +17,9 @@ package io.repsy.os.server.protocols.docker.shared.image.mappers;
 
 import io.repsy.os.server.protocols.docker.shared.image.dtos.ImageInfo;
 import io.repsy.os.server.protocols.docker.shared.image.entities.Image;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import org.jspecify.annotations.NullMarked;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -25,9 +28,18 @@ import org.mapstruct.Mappings;
 @Mapper(componentModel = "spring")
 @NullMarked
 public interface ImageConverter {
+
+  default Instant map(final LocalDateTime localDateTime) {
+    return localDateTime.toInstant(ZoneOffset.UTC);
+  }
+
   @Mappings({
     @Mapping(target = "repoId", source = "repo.id"),
     @Mapping(target = "repoName", source = "repo.name")
   })
   ImageInfo toImageInfo(Image image);
+
+  @Mapping(target = "updatedAt", source = "updatedAt")
+  io.repsy.os.generated.model.ImageListItem toDto(
+      io.repsy.os.server.protocols.docker.shared.image.dtos.ImageListItem source);
 }

@@ -71,4 +71,14 @@ public interface CargoCrateConverter {
     @Mapping(target = "rustVersion", source = "rustVersion")
   })
   CrateIndexEntry toCrateIndexEntry(CargoCrateIndex index);
+
+  @Mappings({
+    @Mapping(target = "downloads", source = "totalDownloads"),
+    @Mapping(target = "updatedAt", source = "lastUpdatedAt")
+  })
+  io.repsy.os.generated.model.CrateListItem toCrateListItemDto(
+      io.repsy.protocols.cargo.shared.crate.dtos.CrateListItem source);
+
+  io.repsy.os.generated.model.CrateVersionListItem toCrateVersionListItemDto(
+      io.repsy.protocols.cargo.shared.crate.dtos.CrateVersionListItem source);
 }
