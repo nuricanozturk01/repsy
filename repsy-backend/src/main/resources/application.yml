@@ -3,9 +3,9 @@ spring:
     name: repsy-backend
 
   datasource:
-    url: ${DB_URL:jdbc:h2:file:/app/data/repsy;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE}
-    username: ${DB_USERNAME:repsy}
-    password: ${DB_PASSWORD:repsy123}
+    url: jdbc:postgresql://localhost:5432/repsy_os
+    username: repsy_os
+    password: repsy_os123
 
   jpa:
     show-sql: false
@@ -38,7 +38,7 @@ multiport:
   tomcat:
     connection-timeout: ${server.tomcat.connection-timeout}
   ports:
-    api: ${API_PORT:8080}
+    api: ${API_PORT:7979}
   port-aliases:
     8443: api
     9443: ""
@@ -61,14 +61,6 @@ repsy:
       key-store-type: ${REPO_SSL_KEY_STORE_TYPE:PKCS12}
       key-alias: ${REPO_SSL_KEY_ALIAS:repsy}
       key-password: ${REPO_SSL_KEY_PASSWORD:}
-  security:
-    scanner: ${SECURITY_SCANNER:disabled}
-    trivy:
-      scanner-base-url: ${TRIVY_SCANNER_BASE_URL:http://localhost:8090}
-      api-key: ${TRIVY_SCANNER_API_KEY:}
-      timeout-seconds: ${TRIVY_TIMEOUT_SECONDS:300}
-    docker:
-      internal-registry-base-url: ${DOCKER_INTERNAL_REGISTRY_BASE_URL:http://localhost:9090}
 
 logging:
   level:
@@ -80,7 +72,7 @@ storage-gateway:
     trash-path: ${storage-gateway.fs.base-path}
 
 admin:
-  initial-password: ${ADMIN_INITIAL_PASSWORD:}
+  initial-password: ${ADMIN_INITIAL_PASSWORD:Test123}
 
 h2:
   tcp-server:

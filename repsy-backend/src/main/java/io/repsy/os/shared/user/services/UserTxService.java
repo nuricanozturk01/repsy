@@ -121,13 +121,12 @@ public class UserTxService {
       throw new BadRequestException(ERR_USERNAME_IN_USE);
     }
 
-    final var salt = PasswordGeneratorUtil.generateSalt();
-    final var hash = this.hashPassword(dto.getPassword(), salt);
+    final var hash = this.hashPassword(dto.getPassword(), dto.getSalt());
 
     final var user = new User();
     user.setUsername(dto.getUsername());
     user.setHash(hash);
-    user.setSalt(salt);
+    user.setSalt(dto.getSalt());
     user.setRole(UserRole.valueOf(dto.getRole().name()));
 
     final var savedUser = this.userRepository.save(user);
