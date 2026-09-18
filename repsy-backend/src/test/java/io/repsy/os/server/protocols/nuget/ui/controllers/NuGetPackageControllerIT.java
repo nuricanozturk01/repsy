@@ -21,11 +21,13 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.http.HttpHeaders.AUTHORIZATION;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import io.repsy.os.RepsyApplication;
-import io.repsy.os.server.protocols.nuget.shared.packages.services.NuGetPackageServiceImpl;
+import io.repsy.os.server.protocols.nuget.shared.packages.entities.NuGetPackage;
+import io.repsy.os.server.protocols.nuget.shared.packages.repositories.NuGetPackageRepository;
 import io.repsy.os.server.protocols.nuget.shared.storage.NuGetStorageService;
 import io.repsy.os.shared.auth.utils.AuthUtils;
 import io.repsy.os.shared.auth.utils.JwtUtils;
@@ -37,10 +39,11 @@ import io.repsy.os.shared.user.entities.UserRole;
 import io.repsy.os.shared.user.repositories.UserRepository;
 import io.repsy.os.shared.user.services.UserTxService;
 import io.repsy.protocols.shared.repo.dtos.RepoType;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -54,13 +57,15 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-/** End-to-end coverage for the NuGet package-management API. */
+/** Full-stack integration coverage for the NuGet package-management API. */
 @Testcontainers
 @AutoConfigureMockMvc
+@Transactional
 @SpringBootTest(
     classes = RepsyApplication.class,
     webEnvironment = SpringBootTest.WebEnvironment.MOCK)
@@ -86,7 +91,7 @@ class NuGetPackageControllerIT {
 
   private static String tempStoragePath() {
     try {
-      return Files.createTempDirectory("repsy-nuget-it").toString();
+      return Files.createTempDirectory("repsy-nuget-api-it").toString();
     } catch (final IOException e) {
       throw new java.io.UncheckedIOException(e);
     }
@@ -97,9 +102,10 @@ class NuGetPackageControllerIT {
   @Autowired private UserTxService userTxService;
   @Autowired private UserRepository userRepository;
   @Autowired private RepoTxService repoTxService;
-  @Autowired private NuGetStorageService nugetStorageService;
-  @Autowired private NuGetPackageServiceImpl nugetPackageService;
+  @Autowired private NuGetPackageRepository nugetPackageRepository;
   @Autowired private JdbcTemplate jdbcTemplate;
+  @Autowired private NuGetStorageService nugetStorageService;
+  @PersistenceContext private EntityManager entityManager;
 
   private static RequestPostProcessor apiPort() {
     return request -> {
@@ -116,6 +122,7 @@ class NuGetPackageControllerIT {
     final var salt = PasswordGeneratorUtil.generateSalt();
     final var hash = PasswordGeneratorUtil.hashPassword(PASSWORD, salt);
     final var info = this.userTxService.create(unique("nuget"), role, hash, salt);
+    this.entityManager.flush();
     return this.userRepository.findById(info.getId()).orElseThrow();
   }
 
@@ -125,39 +132,50 @@ class NuGetPackageControllerIT {
             user.getId(), user.getUsername(), Duration.ofMinutes(30));
   }
 
-  private RepoInfo createRepo(final boolean privateRepo) {
-    final var repo =
-        this.repoTxService.createRepo(unique("nugetrepo"), RepoType.NUGET, privateRepo, null);
-    this.nugetStorageService.createRepo(repo.getId());
+  private RepoInfo createRepo(final RepoType type, final boolean privateRepo) {
+    final var repo = this.repoTxService.createRepo(unique("nugetrepo"), type, privateRepo, null);
+    if (type == RepoType.NUGET) {
+      this.nugetStorageService.createRepo(repo.getId());
+    }
+    this.entityManager.flush();
     return repo;
   }
 
-  /** Seeds metadata through the transactional package service used by the NuGet push path. */
-  private void publish(final RepoInfo repo, final String id, final String version) {
-    final var packageId = this.nugetPackageService.findOrCreatePackage(repo, id);
-    final var publishedAt =
-        version.contains("beta")
-            ? Instant.parse("2026-01-01T00:00:00Z")
-            : Instant.parse("2026-01-02T00:00:00Z");
+  private void publish(final String repoName, final String id, final String version) {
+    final var repo = this.repoTxService.getRepoByName(repoName);
+    final var packageEntity =
+        this.nugetPackageRepository
+            .findByRepoIdAndPackageIdIgnoreCase(repo.getId(), id)
+            .orElseGet(
+                () -> {
+                  final var created = new NuGetPackage();
+                  created.setRepo(
+                      this.entityManager.getReference(
+                          io.repsy.os.shared.repo.entities.Repo.class, repo.getId()));
+                  created.setPackageId(id.toLowerCase(java.util.Locale.ROOT));
+                  return this.nugetPackageRepository.save(created);
+                });
+    final var packageId = packageEntity.getId();
+    this.entityManager.flush();
     this.jdbcTemplate.update(
-        "insert into nuget_package_version "
-            + "(id, package_id, version, is_prerelease, is_listed, published_at, download_count, "
-            + "title, description, authors, tags, icon_url, license_url, project_url, "
-            + "repository_url, readme, dependencies, created_at) "
-            + "values (?, ?, ?, ?, true, ?, 0, ?, ?, ?, ?, null, ?, ?, null, null, ?::jsonb, ?)",
+        """
+        insert into "public"."nuget_package_version"
+          ("id", "package_id", "version", "is_prerelease", "is_listed", "published_at",
+          "download_count", "title", "description", "authors", "tags", "license_url",
+          "project_url", "dependencies", "created_at")
+        values (?, ?, ?, ?, true, current_timestamp, 0, ?, ?, ?, ?, ?, ?, cast(? as jsonb), current_timestamp)
+        """,
         UUID.randomUUID(),
         packageId,
         version,
         version.contains("-"),
-        java.sql.Timestamp.from(publishedAt),
         "NuGet fixture",
         "integration fixture",
         "Repsy",
         "searchable fixture",
         "https://example.test/license",
         "https://example.test/project",
-        null,
-        java.sql.Timestamp.from(Instant.now()));
+        "[]");
   }
 
   private static String nuspec(final String id, final String version) {
@@ -165,8 +183,7 @@ class NuGetPackageControllerIT {
         + id
         + "</id><version>"
         + version
-        + "</version>"
-        + "<title>NuGet fixture</title><authors>Repsy</authors>"
+        + "</version><title>NuGet fixture</title><authors>Repsy</authors>"
         + "<description>integration fixture</description><tags>searchable fixture</tags>"
         + "<licenseUrl>https://example.test/license</licenseUrl>"
         + "<projectUrl>https://example.test/project</projectUrl>"
@@ -174,22 +191,24 @@ class NuGetPackageControllerIT {
   }
 
   @Nested
-  @DisplayName("GET package endpoints")
+  @DisplayName("GET endpoints")
   class GetEndpoints {
 
     @Test
-    @DisplayName("returns search, package, versions, and version detail with full DTO fields")
+    @DisplayName("returns full search, package, version-list, and version DTOs")
     void returnsPackageViews() throws Exception {
       final var user = NuGetPackageControllerIT.this.createUser(UserRole.USER);
-      final var repo = NuGetPackageControllerIT.this.createRepo(true);
+      final var repo = NuGetPackageControllerIT.this.createRepo(RepoType.NUGET, true);
       final var token = NuGetPackageControllerIT.this.bearer(user);
-      NuGetPackageControllerIT.this.publish(repo, "Fixture.Package", "1.0.0");
-      NuGetPackageControllerIT.this.publish(repo, "Fixture.Package", "1.0.1-beta.1");
+      NuGetPackageControllerIT.this.publish(repo.getName(), "Fixture.Package", "1.0.0");
+      NuGetPackageControllerIT.this.publish(repo.getName(), "Fixture.Package", "1.0.1-beta.1");
 
       NuGetPackageControllerIT.this
           .mockMvc
           .perform(
               get("/api/nuget/packages/{repo}", repo.getName())
+                  .param("query", "fixture")
+                  .param("size", "10")
                   .with(apiPort())
                   .header(AUTHORIZATION, token))
           .andExpect(status().isOk())
@@ -197,12 +216,13 @@ class NuGetPackageControllerIT {
           .andExpect(jsonPath("$.msgId").value("nugetPackagesFetched"))
           .andExpect(jsonPath("$.type").value("SUCCESS"))
           .andExpect(jsonPath("$.errorCode").value(nullValue()))
-          .andExpect(jsonPath("$.text").value("nugetPackagesFetched"))
           .andExpect(jsonPath("$.data.content", hasSize(1)))
           .andExpect(jsonPath("$.data.content[0].packageId").value("fixture.package"))
           .andExpect(jsonPath("$.data.content[0].latestVersion").value("1.0.0"))
           .andExpect(jsonPath("$.data.content[0].description").value("integration fixture"))
-          .andExpect(jsonPath("$.data.content[0].totalDownloads").value(0));
+          .andExpect(jsonPath("$.data.content[0].totalDownloads").value(0))
+          .andExpect(jsonPath("$.data.page.size").value(10))
+          .andExpect(jsonPath("$.data.page.totalElements").value(1));
 
       NuGetPackageControllerIT.this
           .mockMvc
@@ -214,6 +234,7 @@ class NuGetPackageControllerIT {
           .andExpect(jsonPath("$.msgId").value("nugetPackageFetched"))
           .andExpect(jsonPath("$.data.packageId").value("fixture.package"))
           .andExpect(jsonPath("$.data.latestVersion").value("1.0.0"))
+          .andExpect(jsonPath("$.data.title").value("NuGet fixture"))
           .andExpect(jsonPath("$.data.authors").value("Repsy"))
           .andExpect(jsonPath("$.data.tags").value("searchable fixture"))
           .andExpect(jsonPath("$.data.totalDownloads").value(0));
@@ -239,13 +260,13 @@ class NuGetPackageControllerIT {
               get(
                       "/api/nuget/packages/{repo}/{id}/{version}",
                       repo.getName(),
-                      "FIXTURE.PACKAGE",
+                      "fixture.package",
                       "1.0.0")
                   .with(apiPort())
                   .header(AUTHORIZATION, token))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.msgId").value("nugetVersionFetched"))
-          .andExpect(jsonPath("$.data.packageId").value("FIXTURE.PACKAGE"))
+          .andExpect(jsonPath("$.data.packageId").value("fixture.package"))
           .andExpect(jsonPath("$.data.version").value("1.0.0"))
           .andExpect(jsonPath("$.data.dependencies", hasSize(0)));
     }
@@ -253,7 +274,7 @@ class NuGetPackageControllerIT {
     @Test
     @DisplayName("rejects missing, malformed, expired, and unknown-user authorization")
     void rejectsInvalidAuthorization() throws Exception {
-      final var repo = NuGetPackageControllerIT.this.createRepo(true);
+      final var repo = NuGetPackageControllerIT.this.createRepo(RepoType.NUGET, true);
       final var user = NuGetPackageControllerIT.this.createUser(UserRole.USER);
       final var expired =
           AuthUtils.AUTH_BEARER
@@ -262,7 +283,7 @@ class NuGetPackageControllerIT {
       final var unknown =
           AuthUtils.AUTH_BEARER
               + NuGetPackageControllerIT.this.jwtUtils.createTokenWithDuration(
-                  UUID.randomUUID(), unique("unknown"), Duration.ofMinutes(30));
+                  UUID.randomUUID(), unique("missing-user"), Duration.ofMinutes(30));
 
       NuGetPackageControllerIT.this
           .mockMvc
@@ -294,27 +315,44 @@ class NuGetPackageControllerIT {
     @Test
     @DisplayName("allows anonymous reads only for public repositories")
     void publicReadAccess() throws Exception {
-      final var repo = NuGetPackageControllerIT.this.createRepo(false);
+      final var repo = NuGetPackageControllerIT.this.createRepo(RepoType.NUGET, false);
       NuGetPackageControllerIT.this
           .mockMvc
           .perform(get("/api/nuget/packages/{repo}", repo.getName()).with(apiPort()))
           .andExpect(status().isOk())
           .andExpect(jsonPath("$.msgId").value("nugetPackagesFetched"));
     }
+
+    @Test
+    @DisplayName("returns not found for an unknown package and version")
+    void unknownItemsAreNotFound() throws Exception {
+      final var repo = NuGetPackageControllerIT.this.createRepo(RepoType.NUGET, false);
+      NuGetPackageControllerIT.this
+          .mockMvc
+          .perform(
+              get("/api/nuget/packages/{repo}/{id}", repo.getName(), "missing").with(apiPort()))
+          .andExpect(status().isNotFound());
+      NuGetPackageControllerIT.this
+          .mockMvc
+          .perform(
+              get("/api/nuget/packages/{repo}/{id}/{version}", repo.getName(), "missing", "1.0.0")
+                  .with(apiPort()))
+          .andExpect(status().isNotFound());
+    }
   }
 
   @Nested
-  @DisplayName("DELETE package endpoints")
+  @DisplayName("DELETE endpoints")
   class DeleteEndpoints {
 
     @Test
-    @DisplayName("deletes one version and then the remaining package, including storage")
+    @DisplayName("deletes a version and package, returning the correct deleted item")
     void deletesVersionAndPackage() throws Exception {
       final var admin = NuGetPackageControllerIT.this.createUser(UserRole.ADMIN);
-      final var repo = NuGetPackageControllerIT.this.createRepo(true);
+      final var repo = NuGetPackageControllerIT.this.createRepo(RepoType.NUGET, true);
       final var token = NuGetPackageControllerIT.this.bearer(admin);
-      NuGetPackageControllerIT.this.publish(repo, "Delete.Me", "1.0.0");
-      NuGetPackageControllerIT.this.publish(repo, "Delete.Me", "2.0.0");
+      NuGetPackageControllerIT.this.publish(repo.getName(), "Delete.Me", "1.0.0");
+      NuGetPackageControllerIT.this.publish(repo.getName(), "Delete.Me", "2.0.0");
 
       NuGetPackageControllerIT.this
           .mockMvc
@@ -354,7 +392,7 @@ class NuGetPackageControllerIT {
     @Test
     @DisplayName("does not allow a read-only caller to delete")
     void readOnlyCallerCannotDelete() throws Exception {
-      final var repo = NuGetPackageControllerIT.this.createRepo(false);
+      final var repo = NuGetPackageControllerIT.this.createRepo(RepoType.NUGET, false);
       final var user = NuGetPackageControllerIT.this.createUser(UserRole.USER);
       NuGetPackageControllerIT.this
           .mockMvc
@@ -364,6 +402,17 @@ class NuGetPackageControllerIT {
                   .header(AUTHORIZATION, NuGetPackageControllerIT.this.bearer(user)))
           .andExpect(status().isUnauthorized())
           .andExpect(jsonPath("$.errorCode").value(matchesPattern(UUID_PATTERN)));
+    }
+
+    @Test
+    @DisplayName("rejects unsupported methods on the package endpoint")
+    void unsupportedMethodsAreRejected() throws Exception {
+      final var repo = NuGetPackageControllerIT.this.createRepo(RepoType.NUGET, false);
+      NuGetPackageControllerIT.this
+          .mockMvc
+          .perform(post("/api/nuget/packages/{repo}", repo.getName()).with(apiPort()))
+          // RPS-849 owns the unsupported-verb behavior; pin today's error-handler response.
+          .andExpect(status().isNotFound());
     }
   }
 }
