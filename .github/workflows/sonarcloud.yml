@@ -1,0 +1,51 @@
+name: SonarCloud Analysis
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  analyze:
+    name: Analyze main branch
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Maven Action
+        uses: s4u/setup-maven-action@v1.21.0
+        with:
+          # Checkout already ran above with fetch-depth: 0 for SonarCloud blame data;
+          # setup-maven-action's own default checkout would re-shallow the repo.
+          checkout-enabled: false
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          java-version: "25"
+          distribution: "temurin"
+          cache: maven
+
+      - name: Install core modules
+        run: mvn -B -ntp install -f core/pom.xml -DskipTests -Drat.skip=true -Dcheckstyle.skip=true
+
+      - name: Build and Verify
+        run: mvn -B -ntp verify
+
+      - name: Analyze with SonarCloud
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+        run: >-
+          mvn -B -ntp
+          org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.projectKey=repsyio_repsy
+          -Dsonar.organization=repsy
+          -Dsonar.exclusions=core/**

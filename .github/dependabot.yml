@@ -5,11 +5,24 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: "maven"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      maven-dependencies:
+        patterns:
+          - "*"
+    ignore:
+      # io.repsy.core:* (the core-* artifacts) is the core submodule's own
+      # groupId — it's built from the core/ directory and already has its
+      # own Dependabot maven updates in the repsyio/repsy-core repository.
+      - dependency-name: "io.repsy.core:*"
 
   - package-ecosystem: "npm"
     directory: "/repsy-frontend"
@@ -20,3 +33,23 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    ignore:
+      # Stay on the Java 25 LTS line; only patch/minor tag bumps are proposed.
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major"]
+      # Stay on the Node 24 LTS line; only patch/minor tag bumps are proposed.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "docker"
+    directory: "/repsy-scanner-trivy"
+    schedule:
+      interval: "weekly"
+    ignore:
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major"]

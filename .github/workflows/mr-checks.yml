@@ -8,16 +8,22 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pre-checks:
     name: Editorconfig check - All
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v7
 
       - name: There must be only one .editorconfig file
         run: |
-          if [ "$(find . -name '.editorconfig' | wc -l)" != "1" ]
+          # core/ is a git submodule with its own .editorconfig; it's a
+          # separate repo, not part of this repo's file count.
+          if [ "$(find . -path './core' -prune -o -name '.editorconfig' -print | wc -l)" != "1" ]
           then
             exit 1
           fi
@@ -31,14 +37,19 @@ jobs:
 
   java-checks:
     name: Repsy check
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
+          fetch-depth: 0
 
       - name: Setup Maven Action
         uses: s4u/setup-maven-action@v1.21.0
+        with:
+          # Checkout already ran above with fetch-depth: 0 for SonarCloud blame data;
+          # setup-maven-action's own default checkout would re-shallow the repo.
+          checkout-enabled: false
 
       - name: Set up JDK
         uses: actions/setup-java@v6
@@ -53,9 +64,24 @@ jobs:
       - name: Build and Verify
         run: mvn -B -ntp verify
 
+      # TEMPORARY: non-blocking while repsy modules are brought up to the 80% coverage
+      # threshold one by one (see jacoco.check.phase in the root pom.xml). Remove
+      # continue-on-error once the coverage follow-up PRs land.
+      - name: Analyze with SonarCloud
+        continue-on-error: true
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+        run: >-
+          mvn -B -ntp
+          org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.projectKey=repsyio_repsy
+          -Dsonar.organization=repsy
+          -Dsonar.exclusions=core/**
+
   repsy-frontend:
     name: Repsy frontend
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     defaults:
       run:
         working-directory: ./repsy-frontend
