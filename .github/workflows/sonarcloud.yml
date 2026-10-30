@@ -25,7 +25,7 @@ jobs:
   frontend-coverage:
     if: false
     name: Frontend coverage
-    runs-on: repsy-md
+    runs-on: ubicloud-standard-4
     timeout-minutes: 30
     defaults:
       run:
@@ -46,7 +46,6 @@ jobs:
         uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4 # v2.2.0
         with:
           install-dependencies: true
-          no-sudo: true
 
       - name: Unit tests
         env:
@@ -66,7 +65,7 @@ jobs:
     if: false
     name: Analyze main branch
     needs: frontend-coverage
-    runs-on: repsy-lg
+    runs-on: ubicloud-standard-8
     timeout-minutes: 60
     steps:
       - name: Checkout
